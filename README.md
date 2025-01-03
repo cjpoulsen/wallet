@@ -78,3 +78,9 @@ query GetWallet {
   }
 }
 ```
+
+## Sources
+* https://github.com/rubenv/sql-migrate
+* https://gqlgen.com/getting-started/
+* https://graphql.org/learn/
+* https://go.dev/doc/tutorial/getting-started

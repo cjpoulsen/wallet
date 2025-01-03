@@ -1,0 +1,15 @@
+type Query {
+  balance(walletId: ID!): Int
+  wallet(id: ID!): Wallet
+}
+
+type Mutation {
+  credit(walletId: ID!, amount: Int!): Wallet
+  create(startingBalance: Int!): Wallet
+  withdraw(walletId: ID!, amount: Int!): Wallet
+}
+
+type Wallet {
+  id: ID!
+  balance: Int!
+}

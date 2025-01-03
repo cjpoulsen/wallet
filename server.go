@@ -3,6 +3,7 @@ package main
 import (
 	"database/sql"
 	"fmt"
+	sqlc "github.com/cjpoulsen/wallet/sql"
 	migrate "github.com/rubenv/sql-migrate"
 	"log"
 	"net/http"
@@ -15,6 +16,8 @@ import (
 	"github.com/99designs/gqlgen/graphql/playground"
 	"github.com/cjpoulsen/wallet/graph"
 	"github.com/vektah/gqlparser/v2/ast"
+
+	_ "github.com/lib/pq"
 )
 
 const defaultPort = "8080"
@@ -27,7 +30,7 @@ func main() {
 
 	// Setup DB
 	migrations := &migrate.FileMigrationSource{
-		Dir: "db/migrations",
+		Dir: "./db/migrations",
 	}
 
 	psqlInfo := fmt.Sprintf("host=%s port=%d user=%s "+
@@ -49,10 +52,19 @@ func main() {
 	fmt.Println("Connected to the database!")
 	fmt.Println("Running migrations...")
 	n, err := migrate.Exec(db, "postgres", migrations, migrate.Up)
+	if err != nil {
+		panic(err)
+	}
 	fmt.Printf("Applied %d migrations.\n", n)
 
+	// Setup SQLC
+	queries := sqlc.New(db)
+
 	// Setup GraphQL
-	srv := handler.New(graph.NewExecutableSchema(graph.Config{Resolvers: &graph.Resolver{}}))
+	srv := handler.New(graph.NewExecutableSchema(graph.Config{Resolvers: &graph.Resolver{
+		Queries: queries,
+		DB:      db,
+	}}))
 
 	srv.AddTransport(transport.Options{})
 	srv.AddTransport(transport.GET{})

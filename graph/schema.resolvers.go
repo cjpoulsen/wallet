@@ -7,7 +7,9 @@ package graph
 import (
 	"context"
 	"fmt"
+	sqlc "github.com/cjpoulsen/wallet/sql"
 	"github.com/google/uuid"
+	"time"
 
 	"github.com/cjpoulsen/wallet/graph/model"
 )
@@ -23,29 +25,72 @@ func (r *mutationResolver) Credit(ctx context.Context, walletID string, amount i
 		return nil, err
 	}
 
-	wallet := r.Wallets[id]
+	tx, err := r.DB.BeginTx(ctx, nil)
+	if err != nil {
+		return nil, fmt.Errorf("error withdrawing funds")
+	}
+	defer tx.Rollback()
 
-	wallet.Balance += amount
+	qtx := r.WithTx(tx)
+	wallet, err := qtx.GetWallet(ctx, id)
+	if err != nil {
+		return nil, fmt.Errorf("error retrieving wallet")
+	}
 
-	return wallet, nil
+	if amount+wallet.Balance > 1000 {
+		return nil, fmt.Errorf("balance exceeds maximum")
+	}
+
+	wallet.Balance = wallet.Balance + amount
+
+	err = qtx.UpdateBalance(ctx, sqlc.UpdateBalanceParams{ID: id, Balance: wallet.Balance, UpdateDate: time.Now()})
+	if err != nil {
+		fmt.Println(err)
+		return nil, fmt.Errorf("error updating balance")
+	}
+	err = tx.Commit()
+	if err != nil {
+		fmt.Println(err)
+		return nil, fmt.Errorf("error updating balance")
+	}
+
+	return &model.Wallet{
+		ID:      id.String(),
+		Balance: wallet.Balance,
+	}, nil
 }
 
 // Create is the resolver for the create field.
 func (r *mutationResolver) Create(ctx context.Context, startingBalance int32) (*model.Wallet, error) {
+	tx, err := r.DB.BeginTx(ctx, nil)
+	if err != nil {
+		fmt.Println(err)
+		return nil, fmt.Errorf("error creating wallet")
+	}
+	defer tx.Rollback()
+
 	id := uuid.New()
 
-	wallet := &model.Wallet{
+	qtx := r.WithTx(tx)
+
+	now := time.Now()
+	_, err = qtx.CreateWallet(ctx, sqlc.CreateWalletParams{
+		ID:         id,
+		Balance:    startingBalance,
+		CreateDate: now,
+		UpdateDate: now,
+	})
+
+	err = tx.Commit()
+	if err != nil {
+		fmt.Println(err)
+		return nil, fmt.Errorf("error creating wallet")
+	}
+
+	return &model.Wallet{
 		ID:      id.String(),
 		Balance: startingBalance,
-	}
-
-	if r.Wallets == nil {
-		r.Wallets = make(map[uuid.UUID]*model.Wallet)
-	}
-
-	r.Wallets[id] = wallet
-
-	return wallet, nil
+	}, nil
 }
 
 // Withdraw is the resolver for the withdraw field.
@@ -55,15 +100,39 @@ func (r *mutationResolver) Withdraw(ctx context.Context, walletID string, amount
 		return nil, err
 	}
 
-	wallet := r.Wallets[id]
+	tx, err := r.DB.BeginTx(ctx, nil)
+	if err != nil {
+		return nil, fmt.Errorf("error withdrawing funds")
+	}
+	defer tx.Rollback()
+
+	qtx := r.WithTx(tx)
+	wallet, err := qtx.GetWallet(ctx, id)
+	if err != nil {
+		return nil, fmt.Errorf("error retrieving wallet")
+	}
 
 	if wallet.Balance < amount {
 		return nil, fmt.Errorf("insufficient funds")
 	}
 
-	wallet.Balance -= amount
+	wallet.Balance = wallet.Balance - amount
 
-	return wallet, nil
+	err = qtx.UpdateBalance(ctx, sqlc.UpdateBalanceParams{ID: id, Balance: wallet.Balance, UpdateDate: time.Now()})
+	if err != nil {
+		fmt.Println(err)
+		return nil, fmt.Errorf("error updating balance")
+	}
+	err = tx.Commit()
+	if err != nil {
+		fmt.Println(err)
+		return nil, fmt.Errorf("error updating balance")
+	}
+
+	return &model.Wallet{
+		ID:      id.String(),
+		Balance: wallet.Balance,
+	}, nil
 }
 
 // Balance is the resolver for the balance field.
@@ -73,7 +142,13 @@ func (r *queryResolver) Balance(ctx context.Context, walletID string) (*int32, e
 		return nil, err
 	}
 
-	return &r.Wallets[id].Balance, nil
+	found, err := r.GetWallet(ctx, id)
+	if err != nil {
+		fmt.Println(err)
+		return nil, fmt.Errorf("error retrieving wallet")
+	}
+
+	return &found.Balance, nil
 }
 
 // Wallet is the resolver for the wallet field.
@@ -83,7 +158,16 @@ func (r *queryResolver) Wallet(ctx context.Context, id string) (*model.Wallet, e
 		return nil, err
 	}
 
-	return r.Wallets[walletId], nil
+	found, err := r.GetWallet(ctx, walletId)
+	if err != nil {
+		fmt.Println(err)
+		return nil, fmt.Errorf("error retrieving wallet")
+	}
+
+	return &model.Wallet{
+		ID:      found.ID.String(),
+		Balance: found.Balance,
+	}, nil
 }
 
 // Mutation returns MutationResolver implementation.

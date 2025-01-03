@@ -1,4 +1,10 @@
 # wallet
+An implementation of a wallet in Go and GraphQL.
+
+Example operations: 
+* add credit to the wallet
+* withdrawal funds from the wallet
+* check balance
 
 ## Commands
 

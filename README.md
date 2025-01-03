@@ -1,6 +1,8 @@
 # wallet
 An implementation of a wallet in Go and GraphQL.
 
+Roadmap: https://github.com/users/cjpoulsen/projects/2/views/1
+
 Example operations: 
 * add credit to the wallet
 * withdrawal funds from the wallet

@@ -45,12 +45,12 @@ func (r *mutationResolver) Credit(ctx context.Context, walletID string, amount i
 
 	err = qtx.UpdateBalance(ctx, sqlc.UpdateBalanceParams{ID: id, Balance: wallet.Balance, UpdateDate: time.Now()})
 	if err != nil {
-		fmt.Println(err)
+		r.Log.Error(err.Error())
 		return nil, fmt.Errorf("error updating balance")
 	}
 	err = tx.Commit()
 	if err != nil {
-		fmt.Println(err)
+		r.Log.Error(err.Error())
 		return nil, fmt.Errorf("error updating balance")
 	}
 
@@ -64,7 +64,7 @@ func (r *mutationResolver) Credit(ctx context.Context, walletID string, amount i
 func (r *mutationResolver) Create(ctx context.Context, startingBalance int32) (*model.Wallet, error) {
 	tx, err := r.DB.BeginTx(ctx, nil)
 	if err != nil {
-		fmt.Println(err)
+		r.Log.Error(err.Error())
 		return nil, fmt.Errorf("error creating wallet")
 	}
 	defer tx.Rollback()
@@ -83,7 +83,7 @@ func (r *mutationResolver) Create(ctx context.Context, startingBalance int32) (*
 
 	err = tx.Commit()
 	if err != nil {
-		fmt.Println(err)
+		r.Log.Error(err.Error())
 		return nil, fmt.Errorf("error creating wallet")
 	}
 
@@ -120,12 +120,12 @@ func (r *mutationResolver) Withdraw(ctx context.Context, walletID string, amount
 
 	err = qtx.UpdateBalance(ctx, sqlc.UpdateBalanceParams{ID: id, Balance: wallet.Balance, UpdateDate: time.Now()})
 	if err != nil {
-		fmt.Println(err)
+		r.Log.Error(err.Error())
 		return nil, fmt.Errorf("error updating balance")
 	}
 	err = tx.Commit()
 	if err != nil {
-		fmt.Println(err)
+		r.Log.Error(err.Error())
 		return nil, fmt.Errorf("error updating balance")
 	}
 
@@ -144,7 +144,7 @@ func (r *queryResolver) Balance(ctx context.Context, walletID string) (*int32, e
 
 	found, err := r.GetWallet(ctx, id)
 	if err != nil {
-		fmt.Println(err)
+		r.Log.Error(err.Error())
 		return nil, fmt.Errorf("error retrieving wallet")
 	}
 
@@ -160,7 +160,7 @@ func (r *queryResolver) Wallet(ctx context.Context, id string) (*model.Wallet, e
 
 	found, err := r.GetWallet(ctx, walletId)
 	if err != nil {
-		fmt.Println(err)
+		r.Log.Error(err.Error())
 		return nil, fmt.Errorf("error retrieving wallet")
 	}
 

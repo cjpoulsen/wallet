@@ -6,6 +6,7 @@ import (
 	sqlc "github.com/cjpoulsen/wallet/sql"
 	migrate "github.com/rubenv/sql-migrate"
 	"log"
+	"log/slog"
 	"net/http"
 	"os"
 
@@ -23,6 +24,9 @@ import (
 const defaultPort = "8080"
 
 func main() {
+	// Set up logging
+	logger := slog.New(slog.NewJSONHandler(os.Stdout, nil))
+
 	port := os.Getenv("PORT")
 	if port == "" {
 		port = defaultPort
@@ -49,13 +53,13 @@ func main() {
 		panic(err)
 	}
 
-	fmt.Println("Connected to the database!")
-	fmt.Println("Running migrations...")
+	logger.Info("Connected to the database!")
+	logger.Info("Running migrations...")
 	n, err := migrate.Exec(db, "postgres", migrations, migrate.Up)
 	if err != nil {
 		panic(err)
 	}
-	fmt.Printf("Applied %d migrations.\n", n)
+	logger.Info(fmt.Sprintf("Applied %d migrations.\n", n))
 
 	// Setup SQLC
 	queries := sqlc.New(db)
@@ -64,6 +68,7 @@ func main() {
 	srv := handler.New(graph.NewExecutableSchema(graph.Config{Resolvers: &graph.Resolver{
 		Queries: queries,
 		DB:      db,
+		Log:     logger,
 	}}))
 
 	srv.AddTransport(transport.Options{})

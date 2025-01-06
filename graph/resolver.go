@@ -9,9 +9,11 @@ package graph
 import (
 	"database/sql"
 	sqlc "github.com/cjpoulsen/wallet/sql"
+	"log/slog"
 )
 
 type Resolver struct {
 	*sqlc.Queries
-	DB *sql.DB
+	DB  *sql.DB
+	Log *slog.Logger
 }
